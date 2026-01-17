@@ -1,0 +1,316 @@
+{% comment %}
+  Renders product buy-buttons.
+  Accepts:
+  - product: {Object} product object.
+  - block: {Object} passing the block information.
+  - product_form_id: {String} product form id.
+  - section_id: {String} id of section to which this snippet belongs.
+  - show_pickup_availability: {Boolean} for the pickup availability. If true the pickup availability is rendered, false - not rendered (optional).
+
+  Usage:
+  {% render 'buy-buttons', block: block, product: product, product_form_id: product_form_id, section_id: section.id, show_pickup_availability: true %}
+{% endcomment %}
+<div {{ block.shopify_attributes }}>
+  {%- if product != blank -%}
+    {%- liquid
+      assign gift_card_recipient_feature_active = false
+      if block.settings.show_gift_card_recipient and product.gift_card?
+        assign gift_card_recipient_feature_active = true
+      endif
+
+      assign show_dynamic_checkout = false
+      if block.settings.show_dynamic_checkout and gift_card_recipient_feature_active == false
+        assign show_dynamic_checkout = true
+      endif
+    -%}
+
+    <product-form
+      class="product-form"
+      data-hide-errors="{{ gift_card_recipient_feature_active }}"
+      data-section-id="{{ section.id }}"
+    >
+      <div class="product-form__error-message-wrapper" role="alert" hidden>
+        <span class="svg-wrapper">
+          {{- 'icon-error.svg' | inline_asset_content -}}
+        </span>
+        <span class="product-form__error-message"></span>
+      </div>
+
+      {%- form 'product',
+        product,
+        id: product_form_id,
+        class: 'form',
+        novalidate: 'novalidate',
+        data-type: 'add-to-cart-form'
+      -%}
+        <input
+          type="hidden"
+          name="id"
+          value="{{ product.selected_or_first_available_variant.id }}"
+          {% if product.selected_or_first_available_variant.available == false
+            or quantity_rule_soldout
+            or product.selected_or_first_available_variant == null
+          %}
+            disabled
+          {% endif %}
+          class="product-variant-id"
+        >
+
+        {%- if gift_card_recipient_feature_active -%}
+          {%- render 'gift-card-recipient-form', product: product, form: form, section: section -%}
+        {%- endif -%}
+
+        {% comment %} <div class="product-form__buttons">
+          {%- liquid
+            assign check_against_inventory = true
+            if product.selected_or_first_available_variant.inventory_management != 'shopify' or product.selected_or_first_available_variant.inventory_policy == 'continue'
+              assign check_against_inventory = false
+            endif
+            if product.selected_or_first_available_variant.quantity_rule.min > product.selected_or_first_available_variant.inventory_quantity and check_against_inventory
+              assign quantity_rule_soldout = true
+            endif
+          -%}
+          <button
+            id="ProductSubmitButton-{{ section_id }}"
+            type="submit"
+            name="add"
+            class="product-form__submit button button--full-width {% if show_dynamic_checkout %}button--secondary{% else %}button--primary{% endif %}"
+            {% if product.selected_or_first_available_variant.available == false
+              or quantity_rule_soldout
+              or product.selected_or_first_available_variant == null
+            %}
+              disabled
+            {% endif %}
+          >
+            <span>
+              {%- if product.selected_or_first_available_variant == null -%}
+                {{ 'products.product.unavailable' | t }}
+              {%- elsif product.selected_or_first_available_variant.available == false or quantity_rule_soldout -%}
+                {{ 'products.product.sold_out' | t }}
+              {%- else -%}
+                {{ 'products.product.add_to_cart' | t }}
+              {%- endif -%}
+            </span>
+            {%- render 'loading-spinner' -%}
+          </button>
+          {%- if show_dynamic_checkout -%}
+            {{ form | payment_button }}
+          {%- endif -%}
+        </div> {% endcomment %}
+        {% comment %} 狗狗尾巴 {% endcomment %}
+<div class="product-form__buttons" style="position: relative; z-index: 1;">
+  
+  <style>
+    /* 尾巴容器 */
+    .fluffy-tail-wrapper {
+      position: absolute;
+      top: -65px;         /* 垂直位置，让尾巴刚好露出来 */
+      right: 10px;        /* 水平位置 */
+      width: 70px;        /* 尾巴稍微大一点更可爱 */
+      height: 70px;
+      z-index: -1;        /* 在按钮后面 */
+      pointer-events: none;
+      
+      /* 初始状态：隐藏 + 缩小一点点 */
+      opacity: 0;
+      transform: scale(0.8) rotate(0deg);
+      transform-origin: bottom center;
+      transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    /* 显形状态 */
+    .fluffy-tail-wrapper.visible {
+      opacity: 1;
+      transform: scale(1) rotate(0deg);
+    }
+
+    /* 尾巴SVG样式 */
+    .fluffy-dog-tail {
+      width: 100%;
+      height: 100%;
+      transform-origin: 50% 90%; /* 摇摆支点在底部中心 */
+      /* 默认暂停，通过JS控制播放 */
+      animation: tail-wag 1s infinite ease-in-out;
+      animation-play-state: paused; 
+      filter: drop-shadow(0 4px 6px rgba(139, 69, 19, 0.15)); /* 柔和阴影 */
+    }
+
+    /* 摇摆动画关键帧 */
+    @keyframes tail-wag {
+      0% { transform: rotate(-15deg); }
+      50% { transform: rotate(15deg); }
+      100% { transform: rotate(-15deg); }
+    }
+  </style>
+
+  <div class="fluffy-tail-wrapper">
+    <svg class="fluffy-dog-tail" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M48.5 88C48.5 88 38 80 32 68C26 56 28 35 42 22C56 9 82 12 88 35C94 58 75 75 60 85C55 88.33 48.5 88 48.5 88Z" fill="url(#fur-gradient)"/>
+      <path d="M88 35C88 35 92 25 82 18" stroke="#D99030" stroke-width="3" stroke-linecap="round"/>
+      <path d="M42 22C42 22 35 25 32 35" stroke="#D99030" stroke-width="3" stroke-linecap="round"/>
+      <path d="M32 68C32 68 25 60 28 50" stroke="#C67D20" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+      
+      <defs>
+        <linearGradient id="fur-gradient" x1="30" y1="20" x2="70" y2="90" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#F4C560"/> <stop offset="1" stop-color="#D68E26"/> </linearGradient>
+      </defs>
+    </svg>
+  </div>
+  
+  <script>
+    (function() {
+      var btnId = "ProductSubmitButton-{{ section_id }}";
+      
+      function initSmartTail() {
+        var btn = document.getElementById(btnId);
+        var wrapper = document.querySelector('.fluffy-tail-wrapper');
+        var tail = document.querySelector('.fluffy-dog-tail');
+        
+        if (!btn || !wrapper || !tail) return;
+
+        document.addEventListener('mousemove', function(e) {
+          var rect = btn.getBoundingClientRect();
+          // 获取按钮中心
+          var centerX = rect.left + rect.width / 2;
+          var centerY = rect.top + rect.height / 2;
+          
+          // 计算按钮的大致半径（用宽度的一半作为参考）
+          var btnRadius = rect.width / 2;
+
+          // 计算鼠标到中心的距离
+          var dist = Math.sqrt(Math.pow(e.clientX - centerX, 2) + Math.pow(e.clientY - centerY, 2));
+          
+          // 定义距离阈值 (1cm ≈ 38px)
+          // 4cm ≈ 152px (取160px)
+          // 3cm ≈ 114px (取120px)
+          // 2cm ≈ 76px  (取80px)
+          
+          var dist4cm = 160 + (btnRadius * 0.5); // 加上一点按钮自身的偏移
+          var dist3cm = 120 + (btnRadius * 0.5);
+          var dist2cm = 80 + (btnRadius * 0.5);
+          var distInside = btnRadius; // 进入按钮内部
+
+          // 1. 控制显示/隐藏 (4cm 范围)
+          if (dist < dist4cm) {
+            wrapper.classList.add('visible');
+          } else {
+            wrapper.classList.remove('visible');
+            return; // 看不见了就不用计算下面的摇摆逻辑了
+          }
+
+          // 2. 控制摇摆速度和状态
+          if (dist > dist3cm) {
+            // [4cm - 3cm]: 出现但静止 (暂停动画)
+            tail.style.animationPlayState = 'paused';
+          
+          } else if (dist > dist2cm) {
+            // [3cm - 2cm]: 慢慢摇 (2秒)
+            tail.style.animationPlayState = 'running';
+            tail.style.animationDuration = '2s';
+          
+          } else if (dist > distInside) {
+            // [2cm - 按钮边缘]: 正常摇 (0.8秒)
+            tail.style.animationPlayState = 'running';
+            tail.style.animationDuration = '0.8s';
+          
+          } else {
+            // [按钮内部]: 稍微快一点 (0.4秒) - 此时已经很快乐了，但不太疯
+            tail.style.animationPlayState = 'running';
+            tail.style.animationDuration = '0.4s';
+          }
+        });
+      }
+
+      setTimeout(initSmartTail, 500);
+      document.addEventListener('DOMContentLoaded', initSmartTail);
+    })();
+  </script>
+  {%- liquid
+    assign check_against_inventory = true
+    if product.selected_or_first_available_variant.inventory_management != 'shopify' or product.selected_or_first_available_variant.inventory_policy == 'continue'
+      assign check_against_inventory = false
+    endif
+    if product.selected_or_first_available_variant.quantity_rule.min > product.selected_or_first_available_variant.inventory_quantity and check_against_inventory
+      assign quantity_rule_soldout = true
+    endif
+  -%}
+  <button
+    id="ProductSubmitButton-{{ section_id }}"
+    type="submit"
+    name="add"
+    class="product-form__submit button button--full-width {% if show_dynamic_checkout %}button--secondary{% else %}button--primary{% endif %}"
+    {% if product.selected_or_first_available_variant.available == false
+      or quantity_rule_soldout
+      or product.selected_or_first_available_variant == null
+    %}
+      disabled
+    {% endif %}
+  >
+    <span>
+      {%- if product.selected_or_first_available_variant == null -%}
+        {{ 'products.product.unavailable' | t }}
+      {%- elsif product.selected_or_first_available_variant.available == false or quantity_rule_soldout -%}
+        {{ 'products.product.sold_out' | t }}
+      {%- else -%}
+        {{ 'products.product.add_to_cart' | t }}
+      {%- endif -%}
+    </span>
+    {%- render 'loading-spinner' -%}
+  </button>
+  {%- if show_dynamic_checkout -%}
+    {{ form | payment_button }}
+  {%- endif -%}
+</div>
+        {% comment %} 狗狗尾巴 {% endcomment %}
+      {%- endform -%}
+    </product-form>
+  {%- else -%}
+    <div class="product-form">
+      <div class="product-form__buttons form">
+        <button
+          type="submit"
+          name="add"
+          class="product-form__submit button button--full-width button--primary"
+          disabled
+        >
+          {{ 'products.product.sold_out' | t }}
+        </button>
+      </div>
+    </div>
+  {%- endif -%}
+
+  {%- if show_pickup_availability -%}
+    {{ 'component-pickup-availability.css' | asset_url | stylesheet_tag }}
+
+    {%- assign pick_up_availabilities = product.selected_or_first_available_variant.store_availabilities
+      | where: 'pick_up_enabled', true
+    -%}
+
+    <pickup-availability
+      class="product__pickup-availabilities quick-add-hidden"
+      {% if product.selected_or_first_available_variant.available and pick_up_availabilities.size > 0 %}
+        available
+      {% endif %}
+      data-root-url="{{ routes.root_url }}"
+      data-variant-id="{{ product.selected_or_first_available_variant.id }}"
+      data-has-only-default-variant="{{ product.has_only_default_variant }}"
+      data-product-page-color-scheme="gradient color-{{ section.settings.color_scheme }}"
+    >
+      <template>
+        <pickup-availability-preview class="pickup-availability-preview">
+          <span class="svg-wrapper">
+            {{- 'icon-unavailable.svg' | inline_asset_content -}}
+          </span>
+          <div class="pickup-availability-info">
+            <p class="caption-large">{{ 'products.product.pickup_availability.unavailable' | t }}</p>
+            <button class="pickup-availability-button link link--text underlined-link">
+              {{ 'products.product.pickup_availability.refresh' | t }}
+            </button>
+          </div>
+        </pickup-availability-preview>
+      </template>
+    </pickup-availability>
+
+    <script src="{{ 'pickup-availability.js' | asset_url }}" defer="defer"></script>
+  {%- endif -%}
+</div>
